@@ -8,11 +8,14 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetMathLibrary.h"
 
 //////////////////////////////////////////////////////////////////////////
 // ATESTCharacter
 
-ATESTCharacter::ATESTCharacter()
+ATESTCharacter::ATESTCharacter():
+SelectionProgress(0)
 {
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
@@ -20,11 +23,6 @@ ATESTCharacter::ATESTCharacter()
 	// set our turn rates for input
 	BaseTurnRate = 45.f;
 	BaseLookUpRate = 45.f;
-
-	// Don't rotate when the controller rotates. Let that just affect the camera.
-	bUseControllerRotationPitch = false;
-	bUseControllerRotationYaw = false;
-	bUseControllerRotationRoll = false;
 
 	// Configure character movement
 	GetCharacterMovement()->bOrientRotationToMovement = true; // Character moves in the direction of input...	
@@ -42,9 +40,20 @@ ATESTCharacter::ATESTCharacter()
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
 	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
+	
+}
 
-	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
-	// are set in the derived blueprint asset named MyCharacter (to avoid direct content references in C++)
+void ATESTCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+
+	// Check is Character controlled by this Player to avoid creating selection from both players.
+	if (this->GetController() ==  UGameplayStatics::GetPlayerController(GetWorld(), 0))
+	{
+		// Check objects in view. This is high-cost function fired every x sec.
+		GetWorldTimerManager().SetTimer(TimerDelegate, this, &ATESTCharacter::ViewSelection, 0.25f, true);
+	}
+	
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -64,38 +73,8 @@ void ATESTCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInpu
 	// "turn" handles devices that provide an absolute delta, such as a mouse.
 	// "turnrate" is for devices that we choose to treat as a rate of change, such as an analog joystick
 	PlayerInputComponent->BindAxis("Turn", this, &APawn::AddControllerYawInput);
-	PlayerInputComponent->BindAxis("TurnRate", this, &ATESTCharacter::TurnAtRate);
 	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
-	PlayerInputComponent->BindAxis("LookUpRate", this, &ATESTCharacter::LookUpAtRate);
-
-	// handle touch devices
-	PlayerInputComponent->BindTouch(IE_Pressed, this, &ATESTCharacter::TouchStarted);
-	PlayerInputComponent->BindTouch(IE_Released, this, &ATESTCharacter::TouchStopped);
-
-	// VR headset functionality
-	PlayerInputComponent->BindAction("ResetVR", IE_Pressed, this, &ATESTCharacter::OnResetVR);
-}
-
-
-void ATESTCharacter::OnResetVR()
-{
-	// If TEST is added to a project via 'Add Feature' in the Unreal Editor the dependency on HeadMountedDisplay in TEST.Build.cs is not automatically propagated
-	// and a linker error will result.
-	// You will need to either:
-	//		Add "HeadMountedDisplay" to [YourProject].Build.cs PublicDependencyModuleNames in order to build successfully (appropriate if supporting VR).
-	// or:
-	//		Comment or delete the call to ResetOrientationAndPosition below (appropriate if not supporting VR)
-	UHeadMountedDisplayFunctionLibrary::ResetOrientationAndPosition();
-}
-
-void ATESTCharacter::TouchStarted(ETouchIndex::Type FingerIndex, FVector Location)
-{
-		Jump();
-}
-
-void ATESTCharacter::TouchStopped(ETouchIndex::Type FingerIndex, FVector Location)
-{
-		StopJumping();
+	
 }
 
 void ATESTCharacter::TurnAtRate(float Rate)
@@ -138,3 +117,63 @@ void ATESTCharacter::MoveRight(float Value)
 		AddMovementInput(Direction, Value);
 	}
 }
+
+//////////////////////////
+
+void ATESTCharacter::ViewSelection()
+{
+	TArray<FHitResult> HitResult;
+
+	FCollisionQueryParams CollisionParameters;
+	CollisionParameters.AddIgnoredActor(this); 
+	
+	FVector Start = GetMesh()->GetSocketLocation("head");
+	FVector End = GetFollowCamera()->GetComponentLocation() + UKismetMathLibrary::GetForwardVector(GetFollowCamera()->GetComponentRotation()) * 2000.f;
+
+	GetWorld()->LineTraceMultiByChannel(HitResult, Start, End, ECollisionChannel::ECC_Camera, CollisionParameters);
+	
+	for (auto Hit : HitResult)
+	{
+		// Actor gets selection after being watched for 3 consecutive ticks
+		if (Hit.Actor == SelectedActor)
+		{
+			// Should be magic. TL to write this setting
+			if (SelectionProgress < 2) 
+			{
+				++SelectionProgress;
+			}
+			else if(SelectionProgress == 2)
+			{
+				// Prevent from firing
+				++SelectionProgress;
+				// Destroy and create new widget
+				SetNewInfoWidget(ESelectedType::Character);
+			}
+			
+			return;
+		}
+		
+		ATESTCharacter* Character = Cast<ATESTCharacter>(Hit.Actor);
+		if (Character)
+		{
+			SelectedActor = Character;
+			SelectionProgress = 0;
+			
+			return;
+		}
+
+		// cast to object...
+	}
+
+	// Triggered if nothing is found.
+	SetNewInfoWidget(ESelectedType::None);
+	SelectedActor = nullptr;
+	SelectionProgress = 0;
+	
+}
+
+void ATESTCharacter::SetNewInfoWidget_Implementation(ESelectedType Type)
+{
+	
+}
+

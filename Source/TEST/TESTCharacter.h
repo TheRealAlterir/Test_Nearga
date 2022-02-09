@@ -3,8 +3,23 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/WidgetComponent.h"
 #include "GameFramework/Character.h"
+
+
+
 #include "TESTCharacter.generated.h"
+
+UENUM(BlueprintType)
+enum ESelectedType
+{
+	Character,
+	Object,
+	
+	//...
+	
+	None
+};
 
 UCLASS(config=Game)
 class ATESTCharacter : public ACharacter
@@ -30,10 +45,12 @@ public:
 	float BaseLookUpRate;
 
 protected:
+	FTimerHandle TimerDelegate;
 
-	/** Resets HMD orientation in VR. */
-	void OnResetVR();
-
+protected:
+	// Called when the game starts
+	virtual void BeginPlay() override;
+	
 	/** Called for forwards/backward input */
 	void MoveForward(float Value);
 
@@ -52,21 +69,30 @@ protected:
 	 */
 	void LookUpAtRate(float Rate);
 
-	/** Handler for when a touch input begins. */
-	void TouchStarted(ETouchIndex::Type FingerIndex, FVector Location);
-
-	/** Handler for when a touch input stops. */
-	void TouchStopped(ETouchIndex::Type FingerIndex, FVector Location);
-
 protected:
 	// APawn interface
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	// End of APawn interface
+
+protected:
+	UFUNCTION()
+	void ViewSelection();
+
+	UFUNCTION(BlueprintNativeEvent)
+	void SetNewInfoWidget(ESelectedType Type);
+
+protected:
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	AActor* SelectedActor;
+
+private:
+	// Used for timer to detect how long object is viewed
+	int32 SelectionProgress;
 
 public:
 	/** Returns CameraBoom subobject **/
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+	
 };
-

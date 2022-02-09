@@ -4,25 +4,24 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "TAbilityComponent.generated.h"
+#include "TAbilityInteraction.generated.h"
 
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
-class TEST_API UTAbilityComponent : public UActorComponent
+class TEST_API UTAbilityInteraction : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:	
 	// Sets default values for this component's properties
-	UTAbilityComponent();
+	UTAbilityInteraction();
 
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
 
 public:	
-	// Called every frame
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-
+	// Call on pressing Use button.
+	void Use();
 		
 };
