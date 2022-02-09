@@ -2,6 +2,7 @@
 
 #include "TESTCharacter.h"
 #include "HeadMountedDisplayFunctionLibrary.h"
+#include "TAbilityShowInfo.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/InputComponent.h"
@@ -15,7 +16,7 @@
 // ATESTCharacter
 
 ATESTCharacter::ATESTCharacter():
-SelectionProgress(0)
+	FocusTime(0)
 {
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
@@ -38,9 +39,9 @@ SelectionProgress(0)
 
 	// Create a follow camera
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
-	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
+	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
+	// Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
 	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
-	
 }
 
 void ATESTCharacter::BeginPlay()
@@ -48,12 +49,11 @@ void ATESTCharacter::BeginPlay()
 	Super::BeginPlay();
 
 	// Check is Character controlled by this Player to avoid creating selection from both players.
-	if (this->GetController() ==  UGameplayStatics::GetPlayerController(GetWorld(), 0))
+	if (this->GetController() == UGameplayStatics::GetPlayerController(GetWorld(), 0))
 	{
 		// Check objects in view. This is high-cost function fired every x sec.
 		GetWorldTimerManager().SetTimer(TimerDelegate, this, &ATESTCharacter::ViewSelection, 0.25f, true);
 	}
-	
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -74,7 +74,6 @@ void ATESTCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInpu
 	// "turnrate" is for devices that we choose to treat as a rate of change, such as an analog joystick
 	PlayerInputComponent->BindAxis("Turn", this, &APawn::AddControllerYawInput);
 	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
-	
 }
 
 void ATESTCharacter::TurnAtRate(float Rate)
@@ -105,12 +104,12 @@ void ATESTCharacter::MoveForward(float Value)
 
 void ATESTCharacter::MoveRight(float Value)
 {
-	if ( (Controller != nullptr) && (Value != 0.0f) )
+	if ((Controller != nullptr) && (Value != 0.0f))
 	{
 		// find out which way is right
 		const FRotator Rotation = Controller->GetControlRotation();
 		const FRotator YawRotation(0, Rotation.Yaw, 0);
-	
+
 		// get right vector 
 		const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 		// add movement in that direction
@@ -122,58 +121,66 @@ void ATESTCharacter::MoveRight(float Value)
 
 void ATESTCharacter::ViewSelection()
 {
-	TArray<FHitResult> HitResult;
+	UTAbilityShowInfo* Ability;
+
+	FHitResult HitResult;
 
 	FCollisionQueryParams CollisionParameters;
-	CollisionParameters.AddIgnoredActor(this); 
-	
+	CollisionParameters.AddIgnoredActor(this);
+
 	FVector Start = GetMesh()->GetSocketLocation("head");
-	FVector End = GetFollowCamera()->GetComponentLocation() + UKismetMathLibrary::GetForwardVector(GetFollowCamera()->GetComponentRotation()) * 2000.f;
+	FVector End = GetFollowCamera()->GetComponentLocation() + UKismetMathLibrary::GetForwardVector(
+		GetFollowCamera()->GetComponentRotation()) * 2000.f + FVector(0.f, 0.f, 200.f);
 
-	GetWorld()->LineTraceMultiByChannel(HitResult, Start, End, ECollisionChannel::ECC_Camera, CollisionParameters);
-	
-	for (auto Hit : HitResult)
+	GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECollisionChannel::ECC_Camera, CollisionParameters);
+
+	if (HitResult.Actor == nullptr)
 	{
-		// Actor gets selection after being watched for 3 consecutive ticks
-		if (Hit.Actor == SelectedActor)
-		{
-			// Should be magic. TL to write this setting
-			if (SelectionProgress < 2) 
-			{
-				++SelectionProgress;
-			}
-			else if(SelectionProgress == 2)
-			{
-				// Prevent from firing
-				++SelectionProgress;
-				// Destroy and create new widget
-				SetNewInfoWidget(ESelectedType::Character);
-			}
-			
-			return;
-		}
-		
-		ATESTCharacter* Character = Cast<ATESTCharacter>(Hit.Actor);
-		if (Character)
-		{
-			SelectedActor = Character;
-			SelectionProgress = 0;
-			
-			return;
-		}
-
-		// cast to object...
+		return;
 	}
 
-	// Triggered if nothing is found.
-	SetNewInfoWidget(ESelectedType::None);
-	SelectedActor = nullptr;
-	SelectionProgress = 0;
-	
+	// it's not nested, it's just FocusTime destiny. For now it's no reason to make it function
+	if (SelectedActor)
+	{
+		// Actor gets selection after being watched for 2 consecutive ticks
+		if (HitResult.Actor == SelectedActor)
+		{
+			// Should be magic. Just set instructions for focus here
+			if (FocusTime < 1)
+			{
+				++FocusTime;
+			}
+			else if (FocusTime == 1)
+			{
+				// Prevent from counting
+				++FocusTime;
+
+				// Destroy and create new widget
+				Ability = SelectedActor->FindComponentByClass<UTAbilityShowInfo>();
+				if (Ability)
+				{
+					Ability->Show(this);
+				}
+			}
+
+			return;
+		}
+
+
+		
+		// Triggered if changed focus.
+		Ability = SelectedActor->FindComponentByClass<UTAbilityShowInfo>();
+		if (Ability)
+		{
+			SelectedActor->FindComponentByClass<UTAbilityShowInfo>()->Hide();
+		}
+	}
+
+	// Focus on new object
+	SelectedActor = HitResult.Actor.Get();
+	FocusTime = 0;
 }
 
-void ATESTCharacter::SetNewInfoWidget_Implementation(ESelectedType Type)
+void ATESTCharacter::SelectNewActor_Implementation(ESelectedType Type)
 {
-	
 }
-

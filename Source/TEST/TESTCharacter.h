@@ -79,7 +79,7 @@ protected:
 	void ViewSelection();
 
 	UFUNCTION(BlueprintNativeEvent)
-	void SetNewInfoWidget(ESelectedType Type);
+	void SelectNewActor(ESelectedType Type);
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
@@ -87,7 +87,7 @@ protected:
 
 private:
 	// Used for timer to detect how long object is viewed
-	int32 SelectionProgress;
+	int32 FocusTime;
 
 public:
 	/** Returns CameraBoom subobject **/
