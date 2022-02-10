@@ -22,7 +22,7 @@ protected:
 	virtual void BeginPlay() override;
 
 public:
-	// Called on healling. May be animated like dot healing effect
+	// Called on healing. May be animated like dot healing effect
 	UFUNCTION(BlueprintCallable)
 	void Heal(const float HealingApplied);
 

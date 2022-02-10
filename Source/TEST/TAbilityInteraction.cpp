@@ -19,7 +19,15 @@ void UTAbilityInteraction::BeginPlay()
 	
 }
 
-void UTAbilityInteraction::Use()
+void UTAbilityInteraction::Use(AActor* Source) const
 {
+	// In case object used by player itself
+	ATESTCharacter* Character = Cast<ATESTCharacter>(Source);
+	if (Character)
+	{
+		OnInteraction.Broadcast(Character);
+	}
+
+	// Other cases...
 	
 }

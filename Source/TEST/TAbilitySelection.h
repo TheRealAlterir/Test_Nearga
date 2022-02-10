@@ -5,19 +5,18 @@
 #include "CoreMinimal.h"
 #include "TESTCharacter.h"
 #include "Components/ActorComponent.h"
-#include "Modules/ModuleObserver.h"
-#include "TAbilityShowInfo.generated.h"
+#include "TAbilitySelection.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FChangeInfoState, ATESTCharacter*, Observer, bool, bShow);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FChangeInfoState, ATESTCharacter*, Observer, bool, State);
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
-class TEST_API UTAbilityShowInfo : public UActorComponent
+class TEST_API UTAbilitySelection : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:	
 	// Sets default values for this component's properties
-	UTAbilityShowInfo();
+	UTAbilitySelection();
 
 protected:
 	// Called when the game starts
@@ -26,15 +25,17 @@ protected:
 public:
 	// Called when something selected
 	UFUNCTION(BlueprintCallable)
-	void Show(ATESTCharacter* ObserverCharacter);
+	void ShowInfo(ATESTCharacter* ObserverCharacter) const;
 
 	// Called after losing selection
 	UFUNCTION(BlueprintCallable)
-	void Hide();
+	void HideInfo() const;
+
+	
 
 public:
-	// Triggered on Health change
+	// Triggered on changing selection state
 	UPROPERTY(BlueprintAssignable)
-	FChangeInfoState OnChangeInfoState;
+	FChangeInfoState OnChangeSelection;
 		
 };

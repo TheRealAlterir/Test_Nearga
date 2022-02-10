@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TESTCharacter.h"
-#include "HeadMountedDisplayFunctionLibrary.h"
-#include "TAbilityShowInfo.h"
+#include "TAbilityHealth.h"
+#include "TAbilityHunger.h"
+#include "TAbilityInteraction.h"
+#include "TAbilitySelection.h"
+#include "TUsableObject.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/InputComponent.h"
@@ -42,6 +45,20 @@ ATESTCharacter::ATESTCharacter():
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	// Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
 	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
+
+	InfoWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("InfoWidget"));
+	InfoWidget->SetupAttachment(RootComponent);
+
+	HealthAbility = CreateDefaultSubobject<UTAbilityHealth>(TEXT("HealthAbility"));
+	AddOwnedComponent(HealthAbility);
+	HungerAbility = CreateDefaultSubobject<UTAbilityHunger>(TEXT("HungerAbility"));
+	AddOwnedComponent(HungerAbility);
+	SelectionAbility = CreateDefaultSubobject<UTAbilitySelection>(TEXT("SelectionAbility"));
+	AddOwnedComponent(SelectionAbility);
+
+	HealthAbility->OnChangeHealth.AddDynamic(this, &ATESTCharacter::OnChangeHealth);
+	HungerAbility->OnStarvation.AddDynamic(this, &ATESTCharacter::OnStarvation);
+	SelectionAbility->OnChangeSelection.AddDynamic(this, &ATESTCharacter::OnChangeSelection);
 }
 
 void ATESTCharacter::BeginPlay()
@@ -54,6 +71,14 @@ void ATESTCharacter::BeginPlay()
 		// Check objects in view. This is high-cost function fired every x sec.
 		GetWorldTimerManager().SetTimer(TimerDelegate, this, &ATESTCharacter::ViewSelection, 0.25f, true);
 	}
+}
+
+// Called every frame
+void ATESTCharacter::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+	
+
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -121,8 +146,6 @@ void ATESTCharacter::MoveRight(float Value)
 
 void ATESTCharacter::ViewSelection()
 {
-	UTAbilityShowInfo* Ability;
-
 	FHitResult HitResult;
 
 	FCollisionQueryParams CollisionParameters;
@@ -130,57 +153,78 @@ void ATESTCharacter::ViewSelection()
 
 	FVector Start = GetMesh()->GetSocketLocation("head");
 	FVector End = GetFollowCamera()->GetComponentLocation() + UKismetMathLibrary::GetForwardVector(
-		GetFollowCamera()->GetComponentRotation()) * 2000.f + FVector(0.f, 0.f, 200.f);
+		GetFollowCamera()->GetComponentRotation()) * 1200.f + FVector(0.f, 0.f, 200.f);
 
-	GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECollisionChannel::ECC_Camera, CollisionParameters);
+	GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECollisionChannel::ECC_Visibility, CollisionParameters);
 
-	if (HitResult.Actor == nullptr)
-	{
-		return;
-	}
-
-	// it's not nested, it's just FocusTime destiny. For now it's no reason to make it function
 	if (SelectedActor)
 	{
-		// Actor gets selection after being watched for 2 consecutive ticks
-		if (HitResult.Actor == SelectedActor)
+		// Trying to select object. This function prevent nesting
+		if (CheckFocus(HitResult.Actor.Get()))
 		{
-			// Should be magic. Just set instructions for focus here
-			if (FocusTime < 1)
-			{
-				++FocusTime;
-			}
-			else if (FocusTime == 1)
-			{
-				// Prevent from counting
-				++FocusTime;
-
-				// Destroy and create new widget
-				Ability = SelectedActor->FindComponentByClass<UTAbilityShowInfo>();
-				if (Ability)
-				{
-					Ability->Show(this);
-				}
-			}
-
 			return;
 		}
 
-
-		
 		// Triggered if changed focus.
-		Ability = SelectedActor->FindComponentByClass<UTAbilityShowInfo>();
+		UTAbilitySelection* Ability = SelectedActor->FindComponentByClass<UTAbilitySelection>();
 		if (Ability)
 		{
-			SelectedActor->FindComponentByClass<UTAbilityShowInfo>()->Hide();
+			SelectedActor->FindComponentByClass<UTAbilitySelection>()->HideInfo();
 		}
 	}
 
-	// Focus on new object
-	SelectedActor = HitResult.Actor.Get();
+	if (HitResult.Actor != nullptr)
+	{
+		// Focus on new object
+		SelectedActor = HitResult.Actor.Get();
+	}
 	FocusTime = 0;
 }
 
-void ATESTCharacter::SelectNewActor_Implementation(ESelectedType Type)
+void ATESTCharacter::OnChangeHealth(float CurrentHealth)
 {
+	//...
 }
+
+void ATESTCharacter::OnStarvation()
+{
+	HealthAbility->DealSingleDamage(5.f);
+}
+
+void ATESTCharacter::OnChangeSelection(class ATESTCharacter* ObserverCharacter, bool State)
+{
+	Observer = ObserverCharacter;
+	bShowSelfInfo = State;
+	InfoWidget->SetVisibility(State);
+	
+}
+
+bool ATESTCharacter::CheckFocus(AActor* Actor)
+{
+	// Actor gets selection after being watched for 2 consecutive ticks
+	if (Actor == SelectedActor && Actor != nullptr)
+	{
+		const int32 TicksToSelect = 1;
+		if (FocusTime < TicksToSelect)
+		{
+			++FocusTime;
+		}
+		else if (FocusTime == TicksToSelect)
+		{
+			// Prevent from counting
+			++FocusTime;
+
+			// Destroy and create new widget
+			UTAbilitySelection* Ability = SelectedActor->FindComponentByClass<UTAbilitySelection>();
+			if (Ability)
+			{
+				Ability->ShowInfo(this);
+			}
+		}
+
+		return true;
+	}
+
+	return false;
+}
+

@@ -5,21 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/WidgetComponent.h"
 #include "GameFramework/Character.h"
-
-
-
 #include "TESTCharacter.generated.h"
-
-UENUM(BlueprintType)
-enum ESelectedType
-{
-	Character,
-	Object,
-	
-	//...
-	
-	None
-};
 
 UCLASS(config=Game)
 class ATESTCharacter : public ACharacter
@@ -33,6 +19,20 @@ class ATESTCharacter : public ACharacter
 	/** Follow camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class UCameraComponent* FollowCamera;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Object, meta = (AllowPrivateAccess = "true"))
+	class UWidgetComponent* InfoWidget;
+
+public:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Abilities)
+	class UTAbilityHealth* HealthAbility;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Abilities)
+	class UTAbilityHunger* HungerAbility;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Abilities)
+	class UTAbilitySelection* SelectionAbility;
+
 public:
 	ATESTCharacter();
 
@@ -46,6 +46,10 @@ public:
 
 protected:
 	FTimerHandle TimerDelegate;
+
+public:
+	// Called every frame
+	virtual void Tick(float DeltaTime) override;
 
 protected:
 	// Called when the game starts
@@ -78,16 +82,32 @@ protected:
 	UFUNCTION()
 	void ViewSelection();
 
-	UFUNCTION(BlueprintNativeEvent)
-	void SelectNewActor(ESelectedType Type);
+	UFUNCTION()
+	void OnChangeHealth(float CurrentHealth);
+
+	UFUNCTION()
+	void OnStarvation();
+
+	UFUNCTION()
+	void OnChangeSelection(class ATESTCharacter* ObserverCharacter, bool State);
+
+private:
+	bool CheckFocus(AActor* Actor);
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	AActor* SelectedActor;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	ATESTCharacter* Observer;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bShowSelfInfo;
+
 private:
 	// Used for timer to detect how long object is viewed
 	int32 FocusTime;
+
 
 public:
 	/** Returns CameraBoom subobject **/
