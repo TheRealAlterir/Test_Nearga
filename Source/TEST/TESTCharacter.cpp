@@ -100,7 +100,7 @@ void ATESTCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInpu
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
 	PlayerInputComponent->BindAction("Use", IE_Pressed, this, &ATESTCharacter::OnInteraction);
-	PlayerInputComponent->BindAction("Attack", IE_Pressed, this, &ATESTCharacter::OnAttack);
+	//PlayerInputComponent->BindAction("Attack", IE_Pressed, this, &ATESTCharacter::OnAttack);
 
 	PlayerInputComponent->BindAxis("MoveForward", this, &ATESTCharacter::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &ATESTCharacter::MoveRight);
@@ -267,12 +267,11 @@ void ATESTCharacter::OnInteraction()
 	}
 }
 
-
+/*
 void ATESTCharacter::OnAttack()
 {
 	if (!HasAuthority())
 	{
-		PlayAnimMontage(Montage);
 		Server_OnAttack();
 	}
 	else
@@ -281,6 +280,7 @@ void ATESTCharacter::OnAttack()
 	}
 	
 }
+*/
 
 void ATESTCharacter::Server_OnInteraction_Implementation(ATUsableObject* Object)
 {
@@ -292,6 +292,7 @@ void ATESTCharacter::Multi_OnInteraction_Implementation(ATUsableObject* Object)
 	Object->InteractionAbility->Use(this);
 }
 
+/*
 void ATESTCharacter::Server_OnAttack_Implementation()
 {
 	Multi_OnAttack_Implementation();
@@ -329,6 +330,7 @@ bool ATESTCharacter::Server_OnAttack_Validate()
 {
 	return true;
 }
+*/
 
 bool ATESTCharacter::Multi_OnInteraction_Validate(ATUsableObject* Object)
 {

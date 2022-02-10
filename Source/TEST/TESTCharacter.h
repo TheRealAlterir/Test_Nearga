@@ -96,6 +96,7 @@ protected:
 	UFUNCTION()
 	void OnChangeSelection(class ATESTCharacter* ObserverCharacter, bool State);
 
+	UFUNCTION()
 	void OnInteraction();
 	
 	UFUNCTION(Server, Reliable, WithValidation)
@@ -108,8 +109,11 @@ protected:
 	bool Multi_OnInteraction_Validate(ATUsableObject* Object);
 	void Multi_OnInteraction_Implementation(ATUsableObject* Object);
 
+	/*
+	UFUNCTION()
 	void OnAttack();
 
+	
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_OnAttack();
 	bool Server_OnAttack_Validate();
@@ -119,6 +123,7 @@ protected:
 	void Multi_OnAttack();
 	bool Multi_OnAttack_Validate();
 	void Multi_OnAttack_Implementation();
+	*/
 
 private:
 	bool CheckFocus(AActor* Actor);
@@ -140,7 +145,6 @@ private:
 	// Used for timer to detect how long object is viewed
 	int32 FocusTime;
 
-
 public:
 	/** Returns CameraBoom subobject **/
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
@@ -148,5 +152,7 @@ public:
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 	/** Returns Viewpoint subobject **/
 	FORCEINLINE class USceneComponent* GetViewpoint() const { return Viewpoint; }
+	/** Returns InfoWidget subobject **/
+	FORCEINLINE class UWidgetComponent* GetInfoWidget() const { return InfoWidget; }
 	
 };

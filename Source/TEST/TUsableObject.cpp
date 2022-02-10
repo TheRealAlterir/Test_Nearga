@@ -9,6 +9,7 @@
 #include "TAbilitySelection.h"
 #include "Components/SphereComponent.h"
 #include "Components/WidgetComponent.h"
+#include "Kismet/KismetMathLibrary.h"
 
 // Sets default values
 ATUsableObject::ATUsableObject()
@@ -50,6 +51,11 @@ void ATUsableObject::BeginPlay()
 void ATUsableObject::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	if (bShowSelfInfo)
+	{
+		ShowInfo();
+	}
 }
 
 void ATUsableObject::OnChangeSelection(ATESTCharacter* ObserverCharacter, bool State)
@@ -78,5 +84,12 @@ void ATUsableObject::OnInteraction(ATESTCharacter* Source)
 	}
 
 	this->Destroy();
+}
+
+void ATUsableObject::ShowInfo()
+{
+	FRotator Rot = UKismetMathLibrary::FindLookAtRotation(GetInfoWidget()->GetComponentLocation(), Observer->GetInfoWidget()->GetComponentLocation());
+
+	GetInfoWidget()->SetWorldRotation(Rot);
 }
 

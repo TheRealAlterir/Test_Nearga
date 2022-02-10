@@ -73,6 +73,9 @@ protected:
 	UFUNCTION()
 	void OnInteraction(ATESTCharacter* Source);
 
+	UFUNCTION()
+	void ShowInfo();
+
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FString Name;
@@ -86,6 +89,8 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bShowSelfInfo;
-	
+
+	/** Returns InfoWidget subobject **/
+	FORCEINLINE class UWidgetComponent* GetInfoWidget() const { return InfoWidget; }
 	
 };
