@@ -22,6 +22,9 @@ class ATESTCharacter : public ACharacter
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class UBoxComponent* MeleeCollision;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	class USceneComponent* Viewpoint;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Object, meta = (AllowPrivateAccess = "true"))
 	class UWidgetComponent* InfoWidget;
 
@@ -108,19 +111,19 @@ protected:
 	void OnAttack();
 
 	UFUNCTION(Server, Reliable, WithValidation)
-	void Server_OnAttack(AActor* Target);
-	bool Server_OnAttack_Validate(AActor* Target);
-	void Server_OnAttack_Implementation(AActor* Target);
+	void Server_OnAttack();
+	bool Server_OnAttack_Validate();
+	void Server_OnAttack_Implementation();
 
 	UFUNCTION(NetMulticast, Reliable, WithValidation)
-	void Multi_OnAttack(AActor* Target);
-	bool Multi_OnAttack_Validate(AActor* Target);
-	void Multi_OnAttack_Implementation(AActor* Target);
+	void Multi_OnAttack();
+	bool Multi_OnAttack_Validate();
+	void Multi_OnAttack_Implementation();
 
 private:
 	bool CheckFocus(AActor* Actor);
 
-public:
+protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	AActor* SelectedActor;
 
@@ -129,6 +132,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bShowSelfInfo;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UAnimMontage* Montage;
 
 private:
 	// Used for timer to detect how long object is viewed
@@ -140,5 +146,7 @@ public:
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+	/** Returns Viewpoint subobject **/
+	FORCEINLINE class USceneComponent* GetViewpoint() const { return Viewpoint; }
 	
 };

@@ -50,6 +50,9 @@ ATESTCharacter::ATESTCharacter():
 
 	MeleeCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("MeleeCollision"));
 	MeleeCollision->SetupAttachment(RootComponent);
+
+	Viewpoint = CreateDefaultSubobject<USceneComponent>(TEXT("Viewpoint"));
+	Viewpoint->SetupAttachment(RootComponent);
 	
 	InfoWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("InfoWidget"));
 	InfoWidget->SetupAttachment(RootComponent);
@@ -159,7 +162,7 @@ void ATESTCharacter::ViewSelection()
 	FCollisionQueryParams CollisionParameters;
 	CollisionParameters.AddIgnoredActor(this);
 
-	FVector Start = GetMesh()->GetSocketLocation("head");
+	FVector Start = GetViewpoint()->GetComponentLocation();
 	FVector End = GetFollowCamera()->GetComponentLocation() + UKismetMathLibrary::GetForwardVector(
 		GetFollowCamera()->GetComponentRotation()) * 1200.f + FVector(0.f, 0.f, 200.f);
 
@@ -267,28 +270,16 @@ void ATESTCharacter::OnInteraction()
 
 void ATESTCharacter::OnAttack()
 {
-	TArray<AActor*> Targets;
-	MeleeCollision->GetOverlappingActors(Targets, ATESTCharacter::StaticClass());
-
-	if (Targets.Num() == 0)
+	if (!HasAuthority())
 	{
-		return;
+		PlayAnimMontage(Montage);
+		Server_OnAttack();
+	}
+	else
+	{
+		Multi_OnAttack();
 	}
 	
-	for (const auto Target : Targets)
-	{
-		if(Target != this)
-		{
-			if (!HasAuthority())
-			{
-				Server_OnAttack(Target);
-			}
-			else
-			{
-				Multi_OnAttack(Target);
-			}
-		}
-	}
 }
 
 void ATESTCharacter::Server_OnInteraction_Implementation(ATUsableObject* Object)
@@ -301,23 +292,40 @@ void ATESTCharacter::Multi_OnInteraction_Implementation(ATUsableObject* Object)
 	Object->InteractionAbility->Use(this);
 }
 
-void ATESTCharacter::Server_OnAttack_Implementation(AActor* Target)
+void ATESTCharacter::Server_OnAttack_Implementation()
 {
-	Multi_OnAttack_Implementation(Target);
+	Multi_OnAttack_Implementation();
 }
 
-void ATESTCharacter::Multi_OnAttack_Implementation(AActor* Target)
+void ATESTCharacter::Multi_OnAttack_Implementation()
 {
-	const ATESTCharacter* Enemy = Cast<ATESTCharacter>(Target);
-	Enemy->HealthAbility->DealSingleDamage(10.0f);
+	PlayAnimMontage(Montage);
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("This is an on screen message!"));
+	TArray<AActor*> Targets;
+	MeleeCollision->GetOverlappingActors(Targets, ATESTCharacter::StaticClass());
+
+	if (Targets.Num() == 0)
+	{
+		return;
+	}
+	
+	for (const auto Target : Targets)
+	{
+		if(Target != this)
+		{
+			const ATESTCharacter* Enemy = Cast<ATESTCharacter>(Target);
+			Enemy->HealthAbility->DealSingleDamage(10.0f);
+		}
+	}
+	
 }
 
-bool ATESTCharacter::Multi_OnAttack_Validate(AActor* Target)
+bool ATESTCharacter::Multi_OnAttack_Validate()
 {
 	return true;
 }
 
-bool ATESTCharacter::Server_OnAttack_Validate(AActor* Target)
+bool ATESTCharacter::Server_OnAttack_Validate()
 {
 	return true;
 }
