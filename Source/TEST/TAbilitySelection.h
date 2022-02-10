@@ -31,8 +31,6 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void HideInfo() const;
 
-	
-
 public:
 	// Triggered on changing selection state
 	UPROPERTY(BlueprintAssignable)

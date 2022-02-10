@@ -7,8 +7,10 @@
 #include "TAbilitySelection.h"
 #include "TUsableObject.h"
 #include "Camera/CameraComponent.h"
+#include "Components/BoxComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/InputComponent.h"
+#include "Components/WidgetComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -46,6 +48,9 @@ ATESTCharacter::ATESTCharacter():
 	// Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
 	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 
+	MeleeCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("MeleeCollision"));
+	MeleeCollision->SetupAttachment(RootComponent);
+	
 	InfoWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("InfoWidget"));
 	InfoWidget->SetupAttachment(RootComponent);
 
@@ -59,6 +64,9 @@ ATESTCharacter::ATESTCharacter():
 	HealthAbility->OnChangeHealth.AddDynamic(this, &ATESTCharacter::OnChangeHealth);
 	HungerAbility->OnStarvation.AddDynamic(this, &ATESTCharacter::OnStarvation);
 	SelectionAbility->OnChangeSelection.AddDynamic(this, &ATESTCharacter::OnChangeSelection);
+
+	HungerAbility->SetIsReplicated(true);
+	HealthAbility->SetIsReplicated(true);
 }
 
 void ATESTCharacter::BeginPlay()
@@ -77,8 +85,6 @@ void ATESTCharacter::BeginPlay()
 void ATESTCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	
-
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -90,6 +96,8 @@ void ATESTCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInpu
 	check(PlayerInputComponent);
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
+	PlayerInputComponent->BindAction("Use", IE_Pressed, this, &ATESTCharacter::OnInteraction);
+	PlayerInputComponent->BindAction("Attack", IE_Pressed, this, &ATESTCharacter::OnAttack);
 
 	PlayerInputComponent->BindAxis("MoveForward", this, &ATESTCharacter::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &ATESTCharacter::MoveRight);
@@ -196,7 +204,6 @@ void ATESTCharacter::OnChangeSelection(class ATESTCharacter* ObserverCharacter, 
 	Observer = ObserverCharacter;
 	bShowSelfInfo = State;
 	InfoWidget->SetVisibility(State);
-	
 }
 
 bool ATESTCharacter::CheckFocus(AActor* Actor)
@@ -226,5 +233,102 @@ bool ATESTCharacter::CheckFocus(AActor* Actor)
 	}
 
 	return false;
+}
+
+void ATESTCharacter::OnInteraction()
+{
+	if (SelectedActor == nullptr)
+	{
+		return;
+	}
+
+	const float Distance = FVector::Dist(SelectedActor->GetActorLocation(), GetMesh()->GetComponentLocation());
+
+	if (Distance > 500.f)
+	{
+		return;
+	}
+
+	ATUsableObject* Object = Cast<ATUsableObject>(SelectedActor);
+	if (Object)
+	{
+		// Networking
+		if (!HasAuthority())
+		{
+			Server_OnInteraction(Object);
+		}
+		else
+		{
+			Multi_OnInteraction(Object);
+		}
+	}
+}
+
+
+void ATESTCharacter::OnAttack()
+{
+	TArray<AActor*> Targets;
+	MeleeCollision->GetOverlappingActors(Targets, ATESTCharacter::StaticClass());
+
+	if (Targets.Num() == 0)
+	{
+		return;
+	}
+	
+	for (const auto Target : Targets)
+	{
+		if(Target != this)
+		{
+			if (!HasAuthority())
+			{
+				Server_OnAttack(Target);
+			}
+			else
+			{
+				Multi_OnAttack(Target);
+			}
+		}
+	}
+}
+
+void ATESTCharacter::Server_OnInteraction_Implementation(ATUsableObject* Object)
+{
+	Multi_OnInteraction(Object);
+}
+
+void ATESTCharacter::Multi_OnInteraction_Implementation(ATUsableObject* Object)
+{
+	Object->InteractionAbility->Use(this);
+}
+
+void ATESTCharacter::Server_OnAttack_Implementation(AActor* Target)
+{
+	Multi_OnAttack_Implementation(Target);
+}
+
+void ATESTCharacter::Multi_OnAttack_Implementation(AActor* Target)
+{
+	const ATESTCharacter* Enemy = Cast<ATESTCharacter>(Target);
+	Enemy->HealthAbility->DealSingleDamage(10.0f);
+}
+
+bool ATESTCharacter::Multi_OnAttack_Validate(AActor* Target)
+{
+	return true;
+}
+
+bool ATESTCharacter::Server_OnAttack_Validate(AActor* Target)
+{
+	return true;
+}
+
+bool ATESTCharacter::Multi_OnInteraction_Validate(ATUsableObject* Object)
+{
+	return true;
+}
+
+bool ATESTCharacter::Server_OnInteraction_Validate(ATUsableObject* Object)
+{
+	return true;
 }
 

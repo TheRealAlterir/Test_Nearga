@@ -30,4 +30,5 @@ public:
 public:
 	UPROPERTY(BlueprintAssignable)
 	FInteractionDelegate OnInteraction;
+	
 };

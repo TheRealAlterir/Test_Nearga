@@ -3,6 +3,8 @@
 
 #include "TAbilityHealth.h"
 
+#include "Net/UnrealNetwork.h"
+
 // Sets default values for this component's properties
 UTAbilityHealth::UTAbilityHealth():
 bCanBeKilled(false)
@@ -45,5 +47,11 @@ void UTAbilityHealth::DealSingleDamage(const float DamageApplied)
 	}
 
 	OnChangeHealth.Broadcast(CurrentHealth);
+}
+
+void UTAbilityHealth::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(UTAbilityHealth, CurrentHealth)
 } 
 

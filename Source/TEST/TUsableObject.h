@@ -86,7 +86,6 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bShowSelfInfo;
-
-private:
+	
 	
 };

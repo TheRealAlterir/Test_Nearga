@@ -35,7 +35,7 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FChangeHealthDelegate OnChangeHealth;
 
-protected:
+public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float MaxHealth;
 
@@ -43,7 +43,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bCanBeKilled;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	float CurrentHealth; 
+	UPROPERTY(Replicated, VisibleAnywhere, BlueprintReadOnly)
+	float CurrentHealth;
+
+protected:
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	
 };

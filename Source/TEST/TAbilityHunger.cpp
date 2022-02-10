@@ -3,6 +3,8 @@
 
 #include "TAbilityHunger.h"
 
+#include "Net/UnrealNetwork.h"
+
 // Sets default values for this component's properties
 UTAbilityHunger::UTAbilityHunger():
 StarvationPower(10.f)
@@ -50,5 +52,11 @@ void UTAbilityHunger::Starve(const float HungerValue)
 		OnStarvation.Broadcast();
 	}
 	
+}
+
+void UTAbilityHunger::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(UTAbilityHunger, CurrentHunger)
 }
 

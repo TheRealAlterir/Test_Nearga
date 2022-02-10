@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Components/WidgetComponent.h"
 #include "GameFramework/Character.h"
 #include "TESTCharacter.generated.h"
 
@@ -19,6 +18,9 @@ class ATESTCharacter : public ACharacter
 	/** Follow camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class UCameraComponent* FollowCamera;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	class UBoxComponent* MeleeCollision;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Object, meta = (AllowPrivateAccess = "true"))
 	class UWidgetComponent* InfoWidget;
@@ -91,10 +93,34 @@ protected:
 	UFUNCTION()
 	void OnChangeSelection(class ATESTCharacter* ObserverCharacter, bool State);
 
+	void OnInteraction();
+	
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_OnInteraction(class ATUsableObject* Object);
+	bool Server_OnInteraction_Validate(ATUsableObject* Object);
+	void Server_OnInteraction_Implementation(ATUsableObject* Object);
+
+	UFUNCTION(NetMulticast, Reliable, WithValidation)
+	void Multi_OnInteraction(ATUsableObject* Object);
+	bool Multi_OnInteraction_Validate(ATUsableObject* Object);
+	void Multi_OnInteraction_Implementation(ATUsableObject* Object);
+
+	void OnAttack();
+
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_OnAttack(AActor* Target);
+	bool Server_OnAttack_Validate(AActor* Target);
+	void Server_OnAttack_Implementation(AActor* Target);
+
+	UFUNCTION(NetMulticast, Reliable, WithValidation)
+	void Multi_OnAttack(AActor* Target);
+	bool Multi_OnAttack_Validate(AActor* Target);
+	void Multi_OnAttack_Implementation(AActor* Target);
+
 private:
 	bool CheckFocus(AActor* Actor);
 
-protected:
+public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	AActor* SelectedActor;
 

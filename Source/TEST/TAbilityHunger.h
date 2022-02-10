@@ -23,8 +23,9 @@ protected:
 
 public:
 	// Called every frame
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-	
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType,
+	                           FActorComponentTickFunction* ThisTickFunction) override;
+
 	// Called when actor eat something
 	UFUNCTION(BlueprintCallable)
 	void Eat(const float FoodValue);
@@ -46,8 +47,12 @@ protected:
 	// Takes selected amount of Hunger every tick.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float StarvationPower;
-	
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+
+public:
+	UPROPERTY(Replicated, VisibleAnywhere, BlueprintReadOnly)
 	float CurrentHunger;
+
+protected:
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	
 };
