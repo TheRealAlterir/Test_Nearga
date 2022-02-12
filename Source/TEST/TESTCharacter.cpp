@@ -53,7 +53,7 @@ ATESTCharacter::ATESTCharacter():
 
 	Viewpoint = CreateDefaultSubobject<USceneComponent>(TEXT("Viewpoint"));
 	Viewpoint->SetupAttachment(RootComponent);
-	
+
 	InfoWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("InfoWidget"));
 	InfoWidget->SetupAttachment(RootComponent);
 
@@ -80,7 +80,7 @@ void ATESTCharacter::BeginPlay()
 	if (this->GetController() == UGameplayStatics::GetPlayerController(GetWorld(), 0))
 	{
 		// Check objects in view. This is high-cost function fired every x sec.
-		GetWorldTimerManager().SetTimer(TimerDelegate, this, &ATESTCharacter::ViewSelection, 0.25f, true);
+		GetWorldTimerManager().SetTimer(TimerDelegate, this, &ATESTCharacter::ViewSelection, 0.10f, true);
 	}
 }
 
@@ -88,6 +88,11 @@ void ATESTCharacter::BeginPlay()
 void ATESTCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	if (bShowSelfInfo)
+	{
+		ShowInfo();
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -100,14 +105,13 @@ void ATESTCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInpu
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
 	PlayerInputComponent->BindAction("Use", IE_Pressed, this, &ATESTCharacter::OnInteraction);
-	//PlayerInputComponent->BindAction("Attack", IE_Pressed, this, &ATESTCharacter::OnAttack);
+	PlayerInputComponent->BindAction("Attack", IE_Pressed, this, &ATESTCharacter::OnAttack);
 
 	PlayerInputComponent->BindAxis("MoveForward", this, &ATESTCharacter::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &ATESTCharacter::MoveRight);
 
 	// We have 2 versions of the rotation bindings to handle different kinds of devices differently
 	// "turn" handles devices that provide an absolute delta, such as a mouse.
-	// "turnrate" is for devices that we choose to treat as a rate of change, such as an analog joystick
 	PlayerInputComponent->BindAxis("Turn", this, &APawn::AddControllerYawInput);
 	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
 }
@@ -155,23 +159,32 @@ void ATESTCharacter::MoveRight(float Value)
 
 //////////////////////////
 
-void ATESTCharacter::ViewSelection()
+AActor* ATESTCharacter::GetRaycastedObject(FVector Destination) const
 {
 	FHitResult HitResult;
+
+	FVector Start = GetViewpoint()->GetComponentLocation();
 
 	FCollisionQueryParams CollisionParameters;
 	CollisionParameters.AddIgnoredActor(this);
 
-	FVector Start = GetViewpoint()->GetComponentLocation();
-	FVector End = GetFollowCamera()->GetComponentLocation() + UKismetMathLibrary::GetForwardVector(
+	GetWorld()->LineTraceSingleByChannel(HitResult, Start, Destination, ECollisionChannel::ECC_Visibility,
+	                                     CollisionParameters);
+
+	return HitResult.Actor.Get();
+}
+
+void ATESTCharacter::ViewSelection()
+{
+	const FVector Destination = GetFollowCamera()->GetComponentLocation() + UKismetMathLibrary::GetForwardVector(
 		GetFollowCamera()->GetComponentRotation()) * 1200.f + FVector(0.f, 0.f, 200.f);
 
-	GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECollisionChannel::ECC_Visibility, CollisionParameters);
+	AActor* Actor = GetRaycastedObject(Destination);
 
 	if (SelectedActor)
 	{
-		// Trying to select object. This function prevent nesting
-		if (CheckFocus(HitResult.Actor.Get()))
+		// Trying to select object. This is function just to prevent nesting
+		if (CheckFocus(Actor))
 		{
 			return;
 		}
@@ -184,12 +197,48 @@ void ATESTCharacter::ViewSelection()
 		}
 	}
 
-	if (HitResult.Actor != nullptr)
+	if (Actor != nullptr)
 	{
 		// Focus on new object
-		SelectedActor = HitResult.Actor.Get();
+		SelectedActor = Actor;
 	}
 	FocusTime = 0;
+}
+
+bool ATESTCharacter::CheckFocus(AActor* Actor)
+{
+	// Actor gets selection after being watched for x consecutive ticks
+	if (Actor == SelectedActor && Actor != nullptr)
+	{
+		const int32 TicksToSelect = 2;
+		if (FocusTime < TicksToSelect)
+		{
+			++FocusTime;
+		}
+		else if (FocusTime == TicksToSelect)
+		{
+			// Prevent from counting
+			++FocusTime;
+
+			// Show widget
+			UTAbilitySelection* Ability = SelectedActor->FindComponentByClass<UTAbilitySelection>();
+			if (Ability)
+			{
+				Ability->ShowInfo(this);
+			}
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+void ATESTCharacter::ShowInfo_Implementation()
+{
+	const FRotator Rot = UKismetMathLibrary::FindLookAtRotation(GetInfoWidget()->GetComponentLocation(), Observer->GetInfoWidget()->GetComponentLocation());
+
+	GetInfoWidget()->SetWorldRotation(Rot);
 }
 
 void ATESTCharacter::OnChangeHealth(float CurrentHealth)
@@ -209,37 +258,9 @@ void ATESTCharacter::OnChangeSelection(class ATESTCharacter* ObserverCharacter, 
 	InfoWidget->SetVisibility(State);
 }
 
-bool ATESTCharacter::CheckFocus(AActor* Actor)
-{
-	// Actor gets selection after being watched for 2 consecutive ticks
-	if (Actor == SelectedActor && Actor != nullptr)
-	{
-		const int32 TicksToSelect = 1;
-		if (FocusTime < TicksToSelect)
-		{
-			++FocusTime;
-		}
-		else if (FocusTime == TicksToSelect)
-		{
-			// Prevent from counting
-			++FocusTime;
-
-			// Destroy and create new widget
-			UTAbilitySelection* Ability = SelectedActor->FindComponentByClass<UTAbilitySelection>();
-			if (Ability)
-			{
-				Ability->ShowInfo(this);
-			}
-		}
-
-		return true;
-	}
-
-	return false;
-}
-
 void ATESTCharacter::OnInteraction()
 {
+	// Check is interacting something	
 	if (SelectedActor == nullptr)
 	{
 		return;
@@ -252,93 +273,83 @@ void ATESTCharacter::OnInteraction()
 		return;
 	}
 
-	ATUsableObject* Object = Cast<ATUsableObject>(SelectedActor);
-	if (Object)
+	// Networking
+	if (HasAuthority())
 	{
-		// Networking
-		if (!HasAuthority())
-		{
-			Server_OnInteraction(Object);
-		}
-		else
-		{
-			Multi_OnInteraction(Object);
-		}
-	}
-}
-
-/*
-void ATESTCharacter::OnAttack()
-{
-	if (!HasAuthority())
-	{
-		Server_OnAttack();
+		Interact();
 	}
 	else
 	{
-		Multi_OnAttack();
+		const FVector Destination = GetFollowCamera()->GetComponentLocation() + UKismetMathLibrary::GetForwardVector(
+	GetFollowCamera()->GetComponentRotation()) * 1200.f + FVector(0.f, 0.f, 200.f);
+
+		Server_OnInteraction(Destination);
+	}
+}
+
+void ATESTCharacter::Interact(const FVector Destination)
+{
+	AActor* Actor;
+	if (SelectedActor)
+	{
+		Actor = SelectedActor;
+	}
+	else
+	{
+		Actor = GetRaycastedObject(Destination);
 	}
 	
-}
-*/
-
-void ATESTCharacter::Server_OnInteraction_Implementation(ATUsableObject* Object)
-{
-	Multi_OnInteraction(Object);
-}
-
-void ATESTCharacter::Multi_OnInteraction_Implementation(ATUsableObject* Object)
-{
-	Object->InteractionAbility->Use(this);
+	ATUsableObject* UsableObject = Cast<ATUsableObject>(Actor);
+	if (UsableObject)
+	{
+		UsableObject->InteractionAbility->Use(this);
+	}
 }
 
-/*
-void ATESTCharacter::Server_OnAttack_Implementation()
-{
-	Multi_OnAttack_Implementation();
-}
-
-void ATESTCharacter::Multi_OnAttack_Implementation()
+void ATESTCharacter::OnAttack()
 {
 	PlayAnimMontage(Montage);
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("This is an on screen message!"));
-	TArray<AActor*> Targets;
-	MeleeCollision->GetOverlappingActors(Targets, ATESTCharacter::StaticClass());
+	if (HasAuthority())
+	{
+		TArray<AActor*> Targets;
+		MeleeCollision->GetOverlappingActors(Targets, ATESTCharacter::StaticClass());
 
-	if (Targets.Num() == 0)
-	{
-		return;
-	}
-	
-	for (const auto Target : Targets)
-	{
-		if(Target != this)
+		if (Targets.Num() == 0)
 		{
-			const ATESTCharacter* Enemy = Cast<ATESTCharacter>(Target);
-			Enemy->HealthAbility->DealSingleDamage(10.0f);
+			return;
+		}
+
+		for (const auto Target : Targets)
+		{
+			if (Target != this)
+			{
+				const ATESTCharacter* Enemy = Cast<ATESTCharacter>(Target);
+				Enemy->HealthAbility->DealSingleDamage(10.0f);
+			}
 		}
 	}
-	
+	else
+	{
+		Server_OnAttack();
+	}
 }
 
-bool ATESTCharacter::Multi_OnAttack_Validate()
+void ATESTCharacter::Server_OnInteraction_Implementation(FVector Destination)
 {
-	return true;
+	Interact(Destination);
+}
+
+void ATESTCharacter::Server_OnAttack_Implementation()
+{
+	OnAttack();
 }
 
 bool ATESTCharacter::Server_OnAttack_Validate()
 {
 	return true;
 }
-*/
 
-bool ATESTCharacter::Multi_OnInteraction_Validate(ATUsableObject* Object)
+bool ATESTCharacter::Server_OnInteraction_Validate(FVector Destination)
 {
 	return true;
 }
-
-bool ATESTCharacter::Server_OnInteraction_Validate(ATUsableObject* Object)
-{
-	return true;
-}
-

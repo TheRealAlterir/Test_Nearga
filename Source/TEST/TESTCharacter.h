@@ -59,7 +59,7 @@ public:
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
-	
+
 	/** Called for forwards/backward input */
 	void MoveForward(float Value);
 
@@ -85,8 +85,14 @@ protected:
 
 protected:
 	UFUNCTION()
+	AActor* GetRaycastedObject(FVector Destination) const;
+
+	UFUNCTION()
 	void ViewSelection();
 
+	UFUNCTION(BlueprintNativeEvent)
+	void ShowInfo();
+	
 	UFUNCTION()
 	void OnChangeHealth(float CurrentHealth);
 
@@ -98,32 +104,23 @@ protected:
 
 	UFUNCTION()
 	void OnInteraction();
-	
+
+private:
+	void Interact(const FVector Destination = FVector(0.f, 0.f, 0.f));
+
+protected:
 	UFUNCTION(Server, Reliable, WithValidation)
-	void Server_OnInteraction(class ATUsableObject* Object);
-	bool Server_OnInteraction_Validate(ATUsableObject* Object);
-	void Server_OnInteraction_Implementation(ATUsableObject* Object);
+	void Server_OnInteraction(FVector Destination);
+	bool Server_OnInteraction_Validate(FVector Destination);
+	void Server_OnInteraction_Implementation(FVector Destination);
 
-	UFUNCTION(NetMulticast, Reliable, WithValidation)
-	void Multi_OnInteraction(ATUsableObject* Object);
-	bool Multi_OnInteraction_Validate(ATUsableObject* Object);
-	void Multi_OnInteraction_Implementation(ATUsableObject* Object);
-
-	/*
 	UFUNCTION()
 	void OnAttack();
 
-	
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_OnAttack();
 	bool Server_OnAttack_Validate();
 	void Server_OnAttack_Implementation();
-
-	UFUNCTION(NetMulticast, Reliable, WithValidation)
-	void Multi_OnAttack();
-	bool Multi_OnAttack_Validate();
-	void Multi_OnAttack_Implementation();
-	*/
 
 private:
 	bool CheckFocus(AActor* Actor);
@@ -134,16 +131,15 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	ATESTCharacter* Observer;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool bShowSelfInfo;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
 	UAnimMontage* Montage;
 
 private:
 	// Used for timer to detect how long object is viewed
 	int32 FocusTime;
+	
+	bool bShowSelfInfo;
 
 public:
 	/** Returns CameraBoom subobject **/
@@ -154,5 +150,4 @@ public:
 	FORCEINLINE class USceneComponent* GetViewpoint() const { return Viewpoint; }
 	/** Returns InfoWidget subobject **/
 	FORCEINLINE class UWidgetComponent* GetInfoWidget() const { return InfoWidget; }
-	
 };
