@@ -80,7 +80,13 @@ void ATESTCharacter::BeginPlay()
 	if (this->GetController() == UGameplayStatics::GetPlayerController(GetWorld(), 0))
 	{
 		// Check objects in view. This is high-cost function fired every x sec.
-		GetWorldTimerManager().SetTimer(TimerDelegate, this, &ATESTCharacter::ViewSelection, 0.10f, true);
+		GetWorldTimerManager().SetTimer(TimerDelegate, this, &ATESTCharacter::ViewSelection, 0.1f, true);
+	}
+
+	if (HasAuthority())
+	{
+		// Server call starvation ticks.
+		GetWorldTimerManager().SetTimer(HungerTimer, this, &ATESTCharacter::IncreaseHunger, 1.f, true);
 	}
 }
 
@@ -174,6 +180,11 @@ AActor* ATESTCharacter::GetRaycastedObject(FVector Destination) const
 	return HitResult.Actor.Get();
 }
 
+void ATESTCharacter::IncreaseHunger()
+{
+	this->HungerAbility->Starve();
+}
+
 void ATESTCharacter::ViewSelection()
 {
 	const FVector Destination = GetFollowCamera()->GetComponentLocation() + UKismetMathLibrary::GetForwardVector(
@@ -248,7 +259,10 @@ void ATESTCharacter::OnChangeHealth(float CurrentHealth)
 
 void ATESTCharacter::OnStarvation()
 {
-	HealthAbility->DealSingleDamage(5.f);
+	if (HasAuthority())
+	{
+		HealthAbility->DealSingleDamage(HungerAbility->StarvationDamage);
+	}
 }
 
 void ATESTCharacter::OnChangeSelection(class ATESTCharacter* ObserverCharacter, bool State)

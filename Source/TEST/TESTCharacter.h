@@ -88,6 +88,9 @@ protected:
 	AActor* GetRaycastedObject(FVector Destination) const;
 
 	UFUNCTION()
+	void IncreaseHunger();
+
+	UFUNCTION()
 	void ViewSelection();
 
 	UFUNCTION(BlueprintNativeEvent)
@@ -140,6 +143,8 @@ private:
 	int32 FocusTime;
 	
 	bool bShowSelfInfo;
+
+	FTimerHandle HungerTimer;
 
 public:
 	/** Returns CameraBoom subobject **/
