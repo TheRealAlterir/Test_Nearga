@@ -125,6 +125,9 @@ protected:
 	bool Server_OnAttack_Validate();
 	void Server_OnAttack_Implementation();
 
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_OnAttack();
+
 private:
 	bool CheckFocus(AActor* Actor);
 

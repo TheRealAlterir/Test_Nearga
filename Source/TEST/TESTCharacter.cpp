@@ -16,6 +16,7 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "Net/UnrealNetwork.h"
 
 //////////////////////////////////////////////////////////////////////////
 // ATESTCharacter
@@ -320,11 +321,22 @@ void ATESTCharacter::Interact(const FVector Destination)
 	}
 }
 
+void ATESTCharacter::Server_OnInteraction_Implementation(FVector Destination)
+{
+	Interact(Destination);
+}
+
+bool ATESTCharacter::Server_OnInteraction_Validate(FVector Destination)
+{
+	return true;
+}
+
 void ATESTCharacter::OnAttack()
 {
-	PlayAnimMontage(Montage);
 	if (HasAuthority())
 	{
+		Multicast_OnAttack();
+		
 		TArray<AActor*> Targets;
 		MeleeCollision->GetOverlappingActors(Targets, ATESTCharacter::StaticClass());
 
@@ -348,22 +360,17 @@ void ATESTCharacter::OnAttack()
 	}
 }
 
-void ATESTCharacter::Server_OnInteraction_Implementation(FVector Destination)
-{
-	Interact(Destination);
-}
-
 void ATESTCharacter::Server_OnAttack_Implementation()
 {
 	OnAttack();
 }
 
-bool ATESTCharacter::Server_OnAttack_Validate()
+void ATESTCharacter::Multicast_OnAttack_Implementation()
 {
-	return true;
+	PlayAnimMontage(Montage);
 }
 
-bool ATESTCharacter::Server_OnInteraction_Validate(FVector Destination)
+bool ATESTCharacter::Server_OnAttack_Validate()
 {
 	return true;
 }
